@@ -1,0 +1,44 @@
+name: Run Telegram Bot 24/7
+
+on:
+  workflow_dispatch: # Manual start
+  repository_dispatch:
+    types: [restart-bot]
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ADMIN_ID: ${{ secrets.ADMIN_ID }}
+        run: |
+          echo "Starting bot..."
+          # Run bot in background
+          node bot.js &
+          # Sleep for 5h 50m (just under the 6h limit)
+          sleep 21000
+
+      - name: Trigger restart
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Restarting workflow..."
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d '{"event_type":"restart-bot"}'
+            
